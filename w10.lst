@@ -1,0 +1,84 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     4                                  global start        
+     5                                  
+     6                                  ; declare external functions needed by our program
+     7                                  extern exit, fopen, fclose, scanf, fprintf
+     8                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+     9                                  import fopen msvcrt.dll   ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    10                                  import fclose msvcrt.dll
+    11                                  import scanf msvcrt.dll
+    12                                  import fprintf msvcrt.dll
+    13                                  ; our data is declared here (the variables needed by our program)
+    14                                  segment data use32 class=data
+    15                                      ; ...
+    16 00000000 6F75747075742E7478-         file_name db "output.txt", 0
+    16 00000009 7400               
+    17 0000000B 7700                        access_mode db "w", 0
+    18 0000000D FFFFFFFF                    file_descriptor dd -1
+    19 00000011 3000<rept>                  s times 254 db "0", 0
+    20 0000020D 0A00                        endl db 10, 0
+    21 0000020F 257300                      format db "%s", 0
+    22                                  ; our code starts here
+    23                                  segment code use32 class=code
+    24                                      start:
+    25                                          ; ...
+    26 00000000 68[0B000000]                    push dword access_mode
+    27 00000005 68[00000000]                    push dword file_name
+    28 0000000A FF15[00000000]                  call [fopen]
+    29 00000010 83C408                          add esp, 4*2
+    30 00000013 A3[0D000000]                    mov [file_descriptor], eax
+    31 00000018 83F800                          cmp eax, 0
+    32 0000001B 7476                            je final
+    33                                          
+    34                                      myLoop:
+    35 0000001D 68[11000000]                    push dword s
+    36 00000022 68[0F020000]                    push dword format
+    37 00000027 FF15[00000000]                  call [scanf]
+    38 0000002D 83C408                          add esp, 4*2
+    39                                          
+    40 00000030 803D[11000000]24                cmp byte[s], 36
+    41 00000037 745A                            je final
+    42                                          ; Find length of string
+    43 00000039 BF[11000000]                    mov edi, s
+    44 0000003E 29C9                            sub ecx, ecx
+    45 00000040 28C0                            sub al, al
+    46 00000042 F7D1                            not ecx
+    47 00000044 FC                              cld
+    48 00000045 F2AE                            repne scasb
+    49 00000047 F7D1                            not ecx
+    50 00000049 49                              dec ecx
+    51                                          
+    52 0000004A BA00000000                      mov edx, 0
+    53                                          iterate:
+    54 0000004F 80B9[11000000]41                    cmp byte[s+ecx], 65
+    55 00000056 7C0A                                jl noAdd
+    56 00000058 80B9[11000000]5A                    cmp byte[s+ecx], 90
+    57 0000005F 7701                                ja noAdd
+    58 00000061 42                                  inc edx
+    59                                              noAdd: 
+    60 00000062 E2EB                            loop iterate
+    61 00000064 83FA01                          cmp edx, 1
+    62 00000067 7C28                            jl nextWord
+    63                                      
+    64 00000069 68[11000000]                    push dword s
+    65 0000006E FF35[0D000000]                  push dword [file_descriptor]
+    66 00000074 FF15[00000000]                  call [fprintf]
+    67 0000007A 83C408                          add esp, 4*2
+    68 0000007D 68[0D020000]                    push dword endl
+    69 00000082 FF35[0D000000]                  push dword[file_descriptor]
+    70 00000088 FF15[00000000]                  call [fprintf]
+    71 0000008E 83C408                          add esp, 4*2
+    72                                          nextWord:    
+    73 00000091 EB8A                                jmp myLoop
+    74                                          
+    75                                      final    
+    75          ******************       warning: label alone on a line without a colon might be in error [-w+orphan-labels]
+    76 00000093 FF35[0D000000]                  push dword [file_descriptor]
+    77 00000099 FF15[00000000]                  call [fclose]
+    78 0000009F 83C404                          add esp, 4
+    79                                          
+    80                                          ; exit(0)
+    81 000000A2 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+    82 000000A4 FF15[00000000]                  call    [exit]       ; call exit to terminate the program
